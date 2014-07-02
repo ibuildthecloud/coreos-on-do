@@ -11,8 +11,8 @@ Ubuntu installation which will immediately kexec into CoreOS and reload the
 environment with the CoreOS kernel and ramdisk.  After that it's all 100%
 CoreOS.
 
-I haven't tested this fully, it seems like CoreOS auto-update will work, but I
-haven't had enough time to try it out.
+I've only tested this for a couple days, so YMMV.  I did at least test that the
+CoreOS updates work.
 
 Installation
 ============
