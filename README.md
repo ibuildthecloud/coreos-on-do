@@ -17,10 +17,10 @@ haven't had enough time to try it out.
 Installation
 ============
 
-Start with an Ubuntu 14.04 droplet installed **with an SSH key**.  The SSH key
-is important as it's how you're going to log into the CoreOS installation.
-I've tried this on nyc2, for some reason sfo1 didn't work as well.  Once
-booted run
+Start with a Debian 7.0 x64 if you're in sfo1 or Ubuntu 14.04 x64 if you're in nyc2.
+I haven't tested other regions.  You must create your droplet **with an SSH key**.
+The SSH key is important as it's how you're going to log into the CoreOS installation.
+Once booted run
 
     wget https://raw.githubusercontent.com/ibuildthecloud/coreos-on-do/master/coreos-on-do.sh
     sudo bash coreos-on-do.sh
@@ -35,4 +35,8 @@ droplet.  Run the following on the web console.
 That will do a bunch of stuff and reboot.  For some reason the networkd config
 doesn't seem to take effect on the first boot.  So now go to the Digital Ocean
 console and do a power cycle on your droplet.  If all is swell you should be
-able to SSH into your newly installed CoreOS.
+able to SSH into your newly installed CoreOS.  Remember that you need to SSH
+in with the core user, not root.
+
+After the installation you can change `/var/lib/coreos-install/user_data` with
+whatever settings you want and reboot.

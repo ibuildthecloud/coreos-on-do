@@ -114,9 +114,11 @@ if [ "$0" = "bash" ]; then
     exit 1
 fi
 
-. /etc/lsb-release
+if [ -e /etc/lsb-release ]; then
+    . /etc/lsb-release
+fi
 
-if [ "$DISTRIB_ID" = "Ubuntu" ]; then
+if [ "$DISTRIB_ID" != "CoreOS" ]; then
     stage1
 elif [ "$1" = "stage3" ]; then
     stage3
