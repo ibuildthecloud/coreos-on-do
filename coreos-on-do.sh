@@ -1,88 +1,134 @@
 #!/bin/bash
 set -e
-set -x
 
-cd $(dirname $0)
+CHANNEL=${CHANNEL:-alpha}
 
-stage1()
+install_kexec()
 {
-    cd /root
-    cat > cloud-config.yaml << EOF
-#cloud-config
+    if which yum 2>/dev/null; then
+        yum install -y kexec-tools
+    elif which apt-get 2>/dev/null; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y kexec-tools
+    fi
+}
 
-write_files:
-  - path: /etc/systemd/network/do.network
-    permissions: 0644
-    content: |
-      [Match]
-      Name=ens3
-      
-      [Network]
-      Address=$(ip addr show dev eth0 | grep 'inet.*eth0' | awk '{print $2}')
-      Gateway=$(route | grep default | awk '{print $2}')
-      DNS=8.8.4.4
-      DNS=8.8.8.8
+setup_dirs()
+{
+    if [ -e /var/tmp/coreos-install ]; then
+        rm -rf /var/tmp/coreos-install
+    fi
+    mkdir -p /var/tmp/coreos-install
 
-ssh_authorized_keys:
-  - $(cat /root/.ssh/authorized_keys | head -1)
+    cd /var/tmp/coreos-install
+    mkdir -p usr/share/oem/bin
+    mkdir -p usr/share/oem/files/{etc/systemd/network,home/core/.ssh,var/lib/coreos-install}
+    FILES=$(readlink -f usr/share/oem/files)
+}
+
+copy_network()
+{
+    ip addr show | grep -E '^[0-9].*state UP|link/ether|inet .*scope global' | awk '{print $2}' | sed -n 'N;N;s/\n/ /g;p' | while read IFACE MAC IP; do
+        TARGET=${FILES}/etc/systemd/network/do-$MAC.network
+        cat > $TARGET << EOF
+[Match]
+MACAddress=$MAC
+
+[Network]
+Address=$IP
 EOF
 
-    wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
-    wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz
+        if ip route show | grep ^default | grep -q ${IFACE/:/}; then
+        cat >> $TARGET << EOF
+Gateway=$(route | grep default | awk '{print $2}')
+EOF
+        fi
 
-    cp $0 stage2.sh
-    chmod +x stage2.sh
-
-    export DEBIAN_FRONTEND=noninteractive
-    apt-get install -y kexec-tools
-    kexec -l coreos_production_pxe.vmlinuz --initrd coreos_production_pxe_image.cpio.gz --append='coreos.autologin=tty1'
-    kexec -e
+        for ns in $(grep '^nameserver' /etc/resolv.conf | awk '{print $2}' | sort -u); do
+        cat >> $TARGET << EOF
+DNS=$ns
+EOF
+        done
+    done
 }
 
-stage2()
+copy_ssh()
 {
-    tar cvzf /var/tmp/modules.tar.gz -C /mnt lib/modules
-    cp $0 /var/tmp
-    cp $(dirname $0)/cloud-config.yaml /var/tmp
-    chmod +x /var/tmp/$(basename $0)
-    exec /var/tmp/$(basename $0) stage3
+    cp -p /root/.ssh/authorized_keys ${FILES}/home/core/.ssh/authorized_keys
+    chmod 600 ${FILES}/home/core/.ssh/authorized_keys
 }
 
-stage3()
+copy_cloud_config()
 {
-    if cat /proc/mounts | awk '{print $2}' | grep -q '^/mnt$'; then
-        umount /mnt
+    TARGET=${FILES}/var/lib/coreos-install/user_data
+    if [[ "$CLOUD_CONFIG" =~ http.* ]]; then
+        curl $CLOUD_CONFIG > ${TARGET}
+    elif [ -e "$CLOUD_CONFIG" ]; then
+        cp $CLOUD_CONFIG $TARGET
     fi
+}
 
-    coreos-cloudinit --from-file=cloud-config.yaml
-    systemctl restart systemd-networkd
+copy_script()
+{
+    (
+        cd /
+        for i in $(lsmod | awk '{print $1}' | sort -u; echo vfat nls_iso8859-1); do
+            find lib/modules/$(uname -r) -name $i.ko
+        done
+        ls -1 lib/modules/$(uname -r)/modules* >> ${FILES}/../modules
+    ) > $FILES/../modules
+    cat > $FILES/../bin/coreos-do-install << "EOF"
+#!/bin/bash
+set -e
+set -x
 
-    wget --no-check-certificate https://raw.github.com/coreos/init/master/bin/coreos-install
-    chmod +x coreos-install
-    ./coreos-install -C alpha -d /dev/vda -c cloud-config.yaml
+exec > /var/log/coreos-install.log 2>&1
 
-    cgpt repair /dev/vda
-    parted -s -- /dev/vda mkpart DOROOT ext4 -500M -0
-    ID=$(parted -sm /dev/vda p | grep DOROOT | cut -f1 -d:)
-    mkfs.ext4 -L DOROOT /dev/vda${ID}
+rsync -av /usr/share/oem/files/ .
+systemctl restart systemd-networkd
 
-    mount LABEL=DOROOT /mnt
-    curl -s http://cdimage.ubuntu.com/ubuntu-core/releases/14.04/release/ubuntu-core-14.04-core-amd64.tar.gz | tar xvzf - -C /mnt
-    cp /etc/resolv.conf /mnt/etc/resolv.conf
+while ! blkid -L DOROOT; do
+    sleep 1
+done
 
-    export DEBIAN_FRONTEND=noninteractive
-    chroot /mnt apt-get update
-    chroot /mnt apt-get install -y kexec-tools
+mount LABEL=DOROOT /mnt
+tar cvzf /var/tmp/modules.tar.gz -C /mnt $(</usr/share/oem/modules)
+umount /mnt
 
-    if [ ! -e /mnt/sbin/init.real ]; then
-        mv /mnt/sbin/init{,.real}
-    fi
+echo "Writing image to disk"
+curl -s --retry 5 --retry-delay 2 http://%CHANNEL%.release.core-os.net/amd64-usr/current/coreos_production_image.bin.bz2 | bzip2 -dc | dd of=/dev/vda bs=1M
 
-    cat > /mnt/sbin/init << "EOF"
+blockdev --rereadpt /dev/vda
+
+cgpt repair /dev/vda
+parted -s -- /dev/vda mkpart DOROOT ext4 -500M -0
+ID=$(parted -sm /dev/vda p | grep DOROOT | cut -f1 -d:)
+mkfs.ext4 -L DOROOT /dev/vda${ID}
+
+mount LABEL=ROOT /mnt
+rsync -av /usr/share/oem/files/ /mnt
+chown -R $(grep ^core: /mnt/etc/passwd | cut -f3,4 -d:) /mnt/home/core
+umount /mnt
+
+
+mount LABEL=DOROOT /mnt
+curl -s http://cdimage.ubuntu.com/ubuntu-core/releases/14.04/release/ubuntu-core-14.04-core-amd64.tar.gz | tar xvzf - -C /mnt
+mkdir -p /mnt/lib/modules
+tar xvzf /var/tmp/modules.tar.gz -C /mnt
+cp /etc/resolv.conf /mnt/etc/resolv.conf
+
+export DEBIAN_FRONTEND=noninteractive
+chroot /mnt apt-get update
+chroot /mnt apt-get install -y kexec-tools
+
+if [ ! -e /mnt/sbin/init.real ]; then
+    mv /mnt/sbin/init{,.real}
+fi
+
+cat > /mnt/sbin/init << "EOF2"
 #!/bin/bash
 
 if [ ! -e /boot/syslinux/vmlinuz-boot_kernel ]; then
-        mount -o ro LABEL=EFI-SYSTEM /boot
+    mount -o ro LABEL=EFI-SYSTEM /boot
 fi
 
 KERNEL=$(grep '^[[:space:]]*kernel' /boot/syslinux/boot_kernel.cfg | awk '{print $2}')
@@ -93,35 +139,106 @@ kexec -e
 
 # In case something goes wrong, we drop to a shell, normally kexec would reboot the system
 bash
+EOF2
+
+chmod +x /mnt/sbin/init
+umount /mnt
+
+reboot -f
 EOF
 
-    chmod +x /mnt/sbin/init
+    sed -i 's/%CHANNEL%/'$CHANNEL'/g' $FILES/../bin/coreos-do-install
 
-    tar xvzf modules.tar.gz -C /mnt
-    umount /mnt
+    cat > ${FILES}/../coreos-do-install.service << EOF
+EOF
 
-    echo Rebooting
-    reboot
+    cat > ${FILES}/../bin/coreos-setup-environment << EOF
+#!/bin/bash
+
+mkdir -p /var/lib/coreos-install
+cat > /var/lib/coreos-install/user_data << EOF2
+#cloud-config
+coreos:
+    units:
+      - name: coreos-install.service
+        command: start
+        content: |
+          [Unit]
+          Description=Installs CoreOS
+
+          [Service]
+          Type=oneshot
+          RemainAfterExit=yes
+          ExecStart=/usr/share/oem/bin/coreos-do-install
+          TimeoutStartSec=600
+
+          [Install]
+          WantedBy=multi-user.target
+EOF2
+EOF
+
+    chmod +x $FILES/../bin/coreos-do-install
+    chmod +x $FILES/../bin/coreos-setup-environment
 }
 
-if [ $(id -u) != 0 ]; then
-    echo Run as root
+do_kexec()
+{
+    wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz -O kernel
+    wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz -O initrd.cpio.gz
+
+    gunzip initrd.cpio.gz
+    find usr | cpio -o -A -H newc -O initrd.cpio
+    gzip initrd.cpio
+
+    kexec -l kernel --initrd initrd.cpio.gz --append='coreos.autologin=tty1'
+    echo "Rebooting"
+    kexec -e
+}
+
+USAGE="Usage: $0 [-C channel] [-c cloud config]
+Options:
+    -C CHANNEL       CoreOS release, either alpha, beta, or stable
+    -c CLOUD_CONFIG  Path to cloud config or a http(s) URL
+"
+
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        -c)
+            shift 1
+            CLOUD_CONFIG=$1
+            ;;
+        -C)
+            shift 1
+            CHANNEL=$1
+            ;;
+        --help)
+            echo "$USAGE"
+            exit 0
+            ;;
+        -h)
+            echo "$USAGE"
+            exit 0
+            ;;
+    esac
+    shift 1
+done
+
+if ! echo $CHANNEL | grep -qE 'alpha|beta|stable'; then
+    echo 'Channel must be alpha, beta, or stable'
     exit 1
 fi
 
-if [ "$0" = "bash" ]; then
-    echo "Download this script, don't pipe it to bash"
-    exit 1
+install_kexec
+setup_dirs
+copy_script
+copy_network
+copy_ssh
+copy_cloud_config
+
+if [ -e /etc/lsb_release ]; then
+    source /etc/lsb_release
 fi
 
-if [ -e /etc/lsb-release ]; then
-    . /etc/lsb-release
-fi
-
-if [ "$DISTRIB_ID" != "CoreOS" ]; then
-    stage1
-elif [ "$1" = "stage3" ]; then
-    stage3
-else
-    stage2
+if [ "$DISTRIB_ID" != CoreOS ]; then
+    do_kexec
 fi

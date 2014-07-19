@@ -2,9 +2,9 @@ CoreOS on Digital Ocean
 =======================
 
 This is a script to setup CoreOS on Digital Ocean.  It works by using kexec to
-first load CoreOS into memory.  Then the script repartitions the disk using the
-normal coreos-install script for local disk installation.  Then a new partition
-called DOROOT is created and we install a small Ubuntu installation.
+first load CoreOS into memory.  The script then repartitions the disk using the
+normal coreos raw image and additionally creates a new parition called DOROOT
+in which we install a small Ubuntu installation to bootstrap the kernel loading.
 
 On boot of the droplet the Digital Ocean supplied kernel will find the small
 Ubuntu installation which will immediately kexec into CoreOS and reload the
@@ -23,20 +23,28 @@ The SSH key is important as it's how you're going to log into the CoreOS install
 Once booted run
 
     wget https://raw.githubusercontent.com/ibuildthecloud/coreos-on-do/master/coreos-on-do.sh
-    sudo bash coreos-on-do.sh
+    chmod +x coreos-on-do.sh
+    ./coreos-on-do.sh -c cloud-config.yml -C alpha
+
+The cloud-config file and the channel are optional.  If you don't supply a
+channel, the default is alpha.
 
 That will run a bunch of stuff and then reboot the droplet.  The last line
-you'll see is `kexec -e`.  Now go to the Digital Ocean console for your
-droplet.  Run the following on the web console.
+you'll see is `kexec -e`.  After rebooting it will take a couple more minutes to
+install.  You can go to the Digital Ocean console and tail
+`/var/log/coreos-install.log` to see what's going on.  After the installation is
+done it will reboot itself a second time.  If all is swell you should
+be able to SSH into your newly installed CoreOS.  **Remember that you need to SSH
+in with the core user, not root.**
 
-    sudo mount LABEL=DOROOT /mnt
-    sudo /mnt/root/stage2.sh
 
-That will do a bunch of stuff and reboot.  For some reason the networkd config
-doesn't seem to take effect on the first boot.  So now go to the Digital Ocean
-console and do a power cycle on your droplet.  If all is swell you should be
-able to SSH into your newly installed CoreOS.  Remember that you need to SSH
-in with the core user, not root.
+Automating
+==========
 
-After the installation you can change `/var/lib/coreos-install/user_data` with
-whatever settings you want and reboot.
+If you have just deployed a brand new droplet, you can run a single command to
+automate the deployment of CoreOS through SSH.
+
+    ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -l root <IP> bash -c "curl -sL https://raw.githubusercontent.com/ibuildthecloud/coreos-on-do/master/coreos-on-do.sh | CHANNEL=alpha CLOUD_CONFIG=http://.../cloud-config.yml bash"
+
+In order to supply a config config it must be a http URL.  The simplest thing 
+to do is to just create a private gist.
