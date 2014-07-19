@@ -25,8 +25,22 @@ write_files:
       Gateway=$(route | grep default | awk '{print $2}')
       DNS=8.8.4.4
       DNS=8.8.8.8
-
 EOF
+
+    PRIVATE=$(ip addr show dev eth1 | grep 'inet.*eth1' | awk '{print $2}')
+    if [[ -n "$PRIVATE" ]]; then
+        cat >> cloud-config.yaml << EOF
+
+  - path: /etc/systemd/network/private.network
+    permissions: 0644
+    content: |
+      [Match]
+      Name=ens4v1
+      
+      [Network]
+      Address=${PRIVATE}
+EOF
+    fi
 
     wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
     wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz
