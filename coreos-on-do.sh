@@ -42,6 +42,26 @@ EOF
 EOF
     fi
 
+    if [[ -n "$DISCOVERY" ]]; then
+        cat >> cloud-config.yaml << EOF
+
+coreos:
+    etcd:
+        # generate a new token for each unique cluster from https://discovery.etcd.io/new
+        discovery: ${DISCOVERY_TOKEN}
+        addr: $public_ipv4:4001
+        peer-addr: $private_ipv4:7001
+
+    fleet:
+        public-ip: $public_ipv4
+
+    units:
+        - name: etcd.service
+          command: start
+        - name: fleet.service
+          command: start
+EOF
+
     wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
     wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz
 
