@@ -51,6 +51,7 @@ stage2()
 {
     tar cvzf /var/tmp/modules.tar.gz -C /mnt lib/modules
     cp $0 /var/tmp
+    cp $(dirname $0)/channel /var/tmp
     cp $(dirname $0)/cloud-config.yaml /var/tmp
     chmod +x /var/tmp/$(basename $0)
     exec /var/tmp/$(basename $0) stage3
