@@ -7,8 +7,13 @@ cd $(dirname $0)
 stage1()
 {
     cd /root
+
+    PUBLIC=$(ip addr show dev eth0 | grep 'inet.*eth0' | awk '{print $2}')
     cat > cloud-config.yaml << EOF
 #cloud-config
+
+ssh_authorized_keys:
+  - $(cat /root/.ssh/authorized_keys | head -1)
 
 write_files:
   - path: /etc/systemd/network/do.network
@@ -18,13 +23,69 @@ write_files:
       Name=ens3
       
       [Network]
-      Address=$(ip addr show dev eth0 | grep 'inet.*eth0' | awk '{print $2}')
+      Address=$PUBLIC
       Gateway=$(route | grep default | awk '{print $2}')
       DNS=8.8.4.4
       DNS=8.8.8.8
+EOF
 
-ssh_authorized_keys:
-  - $(cat /root/.ssh/authorized_keys | head -1)
+    PRIVATE=$(ip addr show dev eth1 | grep 'inet.*eth1' | awk '{print $2}')
+    if [[ -n "$PRIVATE" ]]; then
+        cat >> cloud-config.yaml << EOF
+
+  - path: /etc/systemd/network/private.network
+    permissions: 0644
+    content: |
+      [Match]
+      Name=ens4v1
+      
+      [Network]
+      Address=${PRIVATE}
+EOF
+    fi
+
+    if [[ -n "$DISCOVERY" ]]; then
+        cat >> cloud-config.yaml << EOF
+
+coreos:
+    etcd:
+EOF
+
+        if [[ -n "$HOSTNAME" ]]; then
+        cat >> cloud-config.yaml << EOF
+        name: ${HOSTNAME}
+EOF
+        fi
+
+        if [ -z "$PRIVATE" -o -n "$CROSS_CLOUD" ]; then
+            PEER_ADDR=$(echo $PUBLIC | sed 's/\/[0-9]\+$//')
+        else
+            PEER_ADDR=$(echo $PRIVATE | sed 's/\/[0-9]\+$//')
+        fi
+
+        cat >> cloud-config.yaml << EOF
+        # generate a new token for each unique cluster from https://discovery.etcd.io/new
+        discovery: ${DISCOVERY}
+        addr: $(echo $PUBLIC | sed 's/\/[0-9]\+$//'):4001
+        peer-addr: ${PEER_ADDR}:7001
+
+    fleet:
+        public-ip: $(echo $PUBLIC | sed 's/\/[0-9]\+$//')
+EOF
+
+        if [[ -n "$METADATA" ]]; then
+            cat >> cloud-config.yaml << EOF
+        metadata: ${METADATA}
+EOF
+        fi
+
+        cat >> cloud-config.yaml << EOF
+
+    units:
+        - name: etcd.service
+          command: start
+        - name: fleet.service
+          command: start
 EOF
 
     wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
