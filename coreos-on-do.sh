@@ -66,11 +66,11 @@ EOF
         cat >> cloud-config.yaml << EOF
         # generate a new token for each unique cluster from https://discovery.etcd.io/new
         discovery: ${DISCOVERY}
-        addr: \$public_ipv4:4001
+        addr: $(echo $PUBLIC | sed 's/\/[0-9]\+$//'):4001
         peer-addr: ${PEER_ADDR}:7001
 
     fleet:
-        public-ip: \$public_ipv4
+        public-ip: $(echo $PUBLIC | sed 's/\/[0-9]\+$//')
 EOF
 
         if [[ -n "$METADATA" ]]; then
