@@ -47,6 +47,15 @@ EOF
 
 coreos:
     etcd:
+EOF
+
+        if [[ -n "$HOSTNAME" ]]; then
+        cat >> cloud-config.yaml << EOF
+        name: ${HOSTNAME}
+EOF
+        fi
+
+        cat >> cloud-config.yaml << EOF
         # generate a new token for each unique cluster from https://discovery.etcd.io/new
         discovery: ${DISCOVERY_TOKEN}
         addr: $public_ipv4:4001
