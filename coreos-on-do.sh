@@ -55,11 +55,17 @@ EOF
 EOF
         fi
 
+        if [[ -n "$CROSS_CLOUD" ]]; then
+            PEER_ADDR="\$public_ipv4"
+        else
+            PEER_ADDR="\$private_ipv4"
+        fi
+
         cat >> cloud-config.yaml << EOF
         # generate a new token for each unique cluster from https://discovery.etcd.io/new
         discovery: ${DISCOVERY_TOKEN}
         addr: $public_ipv4:4001
-        peer-addr: $private_ipv4:7001
+        peer-addr: ${PEER_ADDR}:7001
 
     fleet:
         public-ip: $public_ipv4
