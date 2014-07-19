@@ -10,6 +10,9 @@ stage1()
     cat > cloud-config.yaml << EOF
 #cloud-config
 
+ssh_authorized_keys:
+  - $(cat /root/.ssh/authorized_keys | head -1)
+
 write_files:
   - path: /etc/systemd/network/do.network
     permissions: 0644
@@ -23,8 +26,6 @@ write_files:
       DNS=8.8.4.4
       DNS=8.8.8.8
 
-ssh_authorized_keys:
-  - $(cat /root/.ssh/authorized_keys | head -1)
 EOF
 
     wget http://alpha.release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
