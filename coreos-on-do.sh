@@ -44,7 +44,7 @@ EOF
 EOF
     fi
 
-    if [[ -n "$DISCOVERY" ]]; then
+    if [[ -z "$PRIVATE" -o -n "$DISCOVERY" ]]; then
         cat >> cloud-config.yaml << EOF
 
 coreos:
