@@ -69,6 +69,16 @@ EOF
 
     fleet:
         public-ip: $public_ipv4
+EOF
+
+        if [[ -n "$METADATA" ]]; then
+
+            cat >> cloud-config.yaml << EOF
+        metadata: ${METADATA}
+EOF
+        fi
+
+        cat >> cloud-config.yaml << EOF
 
     units:
         - name: etcd.service
