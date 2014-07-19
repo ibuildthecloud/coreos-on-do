@@ -7,6 +7,8 @@ cd $(dirname $0)
 stage1()
 {
     cd /root
+
+    PUBLIC=$(ip addr show dev eth0 | grep 'inet.*eth0' | awk '{print $2}')
     cat > cloud-config.yaml << EOF
 #cloud-config
 
@@ -21,7 +23,7 @@ write_files:
       Name=ens3
       
       [Network]
-      Address=$(ip addr show dev eth0 | grep 'inet.*eth0' | awk '{print $2}')
+      Address=$PUBLIC
       Gateway=$(route | grep default | awk '{print $2}')
       DNS=8.8.4.4
       DNS=8.8.8.8
@@ -56,9 +58,9 @@ EOF
         fi
 
         if [[ -n "$CROSS_CLOUD" ]]; then
-            PEER_ADDR="\$public_ipv4"
+            PEER_ADDR=$(echo $PUBLIC | sed 's/\/[0-9]\+$//')
         else
-            PEER_ADDR="\$private_ipv4"
+            PEER_ADDR=$(echo $PRIVATE | sed 's/\/[0-9]\+$//')
         fi
 
         cat >> cloud-config.yaml << EOF
