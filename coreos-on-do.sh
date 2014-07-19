@@ -44,7 +44,7 @@ EOF
 EOF
     fi
 
-    if [[ -z "$PRIVATE" -o -n "$DISCOVERY" ]]; then
+    if [[ -n "$DISCOVERY" ]]; then
         cat >> cloud-config.yaml << EOF
 
 coreos:
@@ -57,7 +57,7 @@ EOF
 EOF
         fi
 
-        if [[ -n "$CROSS_CLOUD" ]]; then
+        if [ -z "$PRIVATE" -o -n "$CROSS_CLOUD" ]; then
             PEER_ADDR=$(echo $PUBLIC | sed 's/\/[0-9]\+$//')
         else
             PEER_ADDR=$(echo $PRIVATE | sed 's/\/[0-9]\+$//')
