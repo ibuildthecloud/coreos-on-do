@@ -33,6 +33,7 @@ write_files:
 ssh_authorized_keys:
   - $(cat /root/.ssh/authorized_keys | head -1)
 EOF
+	fi
 
     wget http://$(cat channel).release.core-os.net/amd64-usr/current/coreos_production_pxe.vmlinuz
     wget http://$(cat channel).release.core-os.net/amd64-usr/current/coreos_production_pxe_image.cpio.gz
