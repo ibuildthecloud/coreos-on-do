@@ -68,7 +68,7 @@ EOF
         peer-addr: ${PEER_ADDR}:7001
 
     fleet:
-        public-ip: $public_ipv4
+        public-ip: \$public_ipv4
 EOF
 
         if [[ -n "$METADATA" ]]; then
