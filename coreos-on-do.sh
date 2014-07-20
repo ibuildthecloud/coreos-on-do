@@ -29,6 +29,7 @@ setup_dirs()
 copy_network()
 {
     ip addr show | grep -E '^[0-9].*state UP|link/ether|inet .*scope global' | awk '{print $2}' | sed -n 'N;N;s/\n/ /g;p' | while read IFACE MAC IP; do
+        GATEWAY=
         TARGET=${FILES}/etc/systemd/network/do-$MAC.network
         cat > $TARGET << EOF
 [Match]
@@ -39,17 +40,26 @@ Address=$IP
 EOF
 
         if ip route show | grep ^default | grep -q ${IFACE/:/}; then
-        cat >> $TARGET << EOF
-Gateway=$(route | grep default | awk '{print $2}')
+            GATEWAY=$(route | grep default | awk '{print $2}')
+            cat >> $TARGET << EOF
+Gateway=$GATEWAY
 EOF
         fi
 
         for ns in $(grep '^nameserver' /etc/resolv.conf | awk '{print $2}' | sort -u); do
-        cat >> $TARGET << EOF
+            cat >> $TARGET << EOF
 DNS=$ns
 EOF
         done
+
+        if [ -z "$GATEWAY" ]; then
+            echo "COREOS_PRIVATE_IPV4=${IP/\/*/}" >> ${FILES}/etc/environment
+        else
+            echo "COREOS_PUBLIC_IPV4=${IP/\/*/}" >> ${FILES}/etc/environment
+        fi
     done
+
+    hostname > ${FILES}/etc/hostname
 }
 
 copy_ssh()
