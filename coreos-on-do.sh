@@ -2,6 +2,7 @@
 set -e
 
 CHANNEL=${CHANNEL:-alpha}
+VERSION=${VERSION:-current}
 
 install_kexec()
 {
@@ -95,7 +96,7 @@ tar cvzf /var/tmp/modules.tar.gz -C /mnt $(</usr/share/oem/modules)
 umount /mnt
 
 echo "Writing image to disk"
-curl -s --retry 5 --retry-delay 2 http://%CHANNEL%.release.core-os.net/amd64-usr/current/coreos_production_image.bin.bz2 | bzip2 -dc | dd of=/dev/vda bs=1M
+curl -s --retry 5 --retry-delay 2 http://%CHANNEL%.release.core-os.net/amd64-usr/%VERSION%/coreos_production_image.bin.bz2 | bzip2 -dc | dd of=/dev/vda bs=1M
 
 blockdev --rereadpt /dev/vda
 
@@ -147,7 +148,7 @@ umount /mnt
 reboot -f
 EOF
 
-    sed -i 's/%CHANNEL%/'$CHANNEL'/g' $FILES/../bin/coreos-do-install
+    sed -i -e 's/%CHANNEL%/'$CHANNEL'/g' -e 's/%VERSION%/'$VERSION'/g' $FILES/../bin/coreos-do-install
 
     cat > ${FILES}/../coreos-do-install.service << EOF
 EOF
@@ -195,14 +196,19 @@ do_kexec()
     kexec -e
 }
 
-USAGE="Usage: $0 [-C channel] [-c cloud config]
+USAGE="Usage: $0 [-C channel] [-c cloud config] [-V version]
 Options:
-    -C CHANNEL       CoreOS release, either alpha, beta, or stable
+    -C CHANNEL       CoreOS release, either alpha, beta, or stable, default: current
     -c CLOUD_CONFIG  Path to cloud config or a http(s) URL
+    -V VERSION       Version to install, default: current
 "
 
 while [ "$#" -gt 0 ]; do
     case $1 in
+        -V)
+            shift 1
+            VERSION=$1
+            ;;
         -c)
             shift 1
             CLOUD_CONFIG=$1
