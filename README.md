@@ -26,7 +26,7 @@ coreos-on-do.sh -h
 
 Usage: ./coreos-on-do.sh [-C channel] [-c cloud config] [-V version]
 Options:
-    -C CHANNEL       CoreOS release, either alpha, beta, or stable, default: current
+    -C CHANNEL       CoreOS release, either alpha, beta, or stable, default: alpha
     -c CLOUD_CONFIG  Path to cloud config or a http(s) URL
     -V VERSION       Version to install, default: current
 ```
