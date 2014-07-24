@@ -203,7 +203,7 @@ do_kexec()
 
     kexec -l kernel --initrd initrd.cpio.gz --append='coreos.autologin=tty1'
     echo "Rebooting"
-    kexec -e
+    bash -c "sleep 2; kexec -e" >/dev/null 2>&1 &
 }
 
 USAGE="Usage: $0 [-C channel] [-c cloud config] [-V version]
