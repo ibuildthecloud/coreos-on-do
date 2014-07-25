@@ -58,4 +58,4 @@ Troubleshooting
 kexec hangs on first reboot
 ---------------------------
 
-In order to install CoreOS this script needs to run kexec.  Sometimes the first kexec will hang.  The script will print `Rebooting` but from the web console you will just Ubuntu login and its hung.  If this happens, first wait 5 minutes or so.  Sometimes it just takes way too long.  If it still does nothing just power cycle the droplet and try again.  Eventually it should work.  If you still experience problem try different versions of Ubuntu x64, for example 12.04.
+In order to install CoreOS this script needs to run kexec.  Sometimes the first kexec will appear to hang.  The script will print `Rebooting` but from the web console you will just Ubuntu login and its hung.  If this happens, first wait 5 minutes or so.  Sometimes it just takes way too long and for some reason the web console is frozen.  If it still does nothing just power cycle the droplet and try again.  Eventually it should work.
