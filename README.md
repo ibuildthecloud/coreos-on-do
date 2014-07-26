@@ -5,8 +5,6 @@ This is a script to setup CoreOS on Digital Ocean.  It works by using kexec to f
 
 On boot of the droplet the Digital Ocean supplied kernel will find the small Ubuntu installation which will immediately kexec into CoreOS and reload the environment with the CoreOS kernel and ramdisk.  After that it's all 100% CoreOS.
 
-I've only tested this for a couple days, so YMMV.  I did at least test that the CoreOS updates work.
-
 Installation
 ============
 
