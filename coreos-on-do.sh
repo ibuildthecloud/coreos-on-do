@@ -22,7 +22,7 @@ setup_dirs()
 
     cd /var/tmp/coreos-install
     mkdir -p usr/share/oem/bin
-    mkdir -p usr/share/oem/files/{etc/systemd/network,home/core/.ssh,var/lib/coreos-install}
+    mkdir -p usr/share/oem/files/{etc/systemd/network,etc/ssh/,home/core/.ssh,var/lib/coreos-install}
     FILES=$(readlink -f usr/share/oem/files)
 }
 
@@ -66,6 +66,12 @@ copy_ssh()
 {
     cp -p /root/.ssh/authorized_keys ${FILES}/home/core/.ssh/authorized_keys
     chmod 600 ${FILES}/home/core/.ssh/authorized_keys
+}
+
+copy_host_key()
+{
+    cp -p /etc/ssh/ssh_host_rsa_key ${FILES}/etc/ssh/ssh_host_rsa_key
+    chmod 600 ${FILES}/etc/ssh/ssh_host_rsa_key
 }
 
 copy_cloud_config()
@@ -249,6 +255,7 @@ setup_dirs
 copy_script
 copy_network
 copy_ssh
+copy_host_key
 copy_cloud_config
 
 if [ -e /etc/lsb_release ]; then
