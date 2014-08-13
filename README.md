@@ -43,7 +43,7 @@ If you have just deployed a brand new droplet, you can run a single command to a
 
     curl -sL https://raw.githubusercontent.com/ibuildthecloud/coreos-on-do/master/coreos-on-do.sh | ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -l root <IP> VERSION=current CHANNEL=alpha CLOUD_CONFIG=http://.../cloud-config.yml bash
 
-All environment variables (VERSION, CHANNEL, CLOUD_CONFIG) are optional.  In order to supply a config config it must be a http URL.  The simplest thing to do is to just create a private gist.
+All environment variables (VERSION, CHANNEL, CLOUD_CONFIG) are optional.  In order to supply a config config it can be a http URL or a file locally on disk.  The simplest thing to do is to just create a private gist or scp the file over before running the script.
 
 Networking
 ==========
