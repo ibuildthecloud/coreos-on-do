@@ -244,17 +244,18 @@ if ! echo $CHANNEL | grep -qE 'alpha|beta|stable'; then
     exit 1
 fi
 
+if [ -e /etc/lsb_release ]; then
+    source /etc/lsb_release
+    if [ "$DISTRIB_ID" = CoreOS ]; then
+        echo 'This must be ran on Ubuntu'
+        exit 0
+    fi
+fi
+
 install_kexec
 setup_dirs
 copy_script
 copy_network
 copy_ssh
 copy_cloud_config
-
-if [ -e /etc/lsb_release ]; then
-    source /etc/lsb_release
-fi
-
-if [ "$DISTRIB_ID" != CoreOS ]; then
-    do_kexec
-fi
+do_kexec
