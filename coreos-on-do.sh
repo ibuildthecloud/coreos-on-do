@@ -72,7 +72,7 @@ copy_cloud_config()
 {
     TARGET=${FILES}/var/lib/coreos-install/user_data
     if [[ "$CLOUD_CONFIG" =~ http.* ]]; then
-        curl $CLOUD_CONFIG > ${TARGET}
+        curl -L $CLOUD_CONFIG > ${TARGET}
     elif [ -e "$CLOUD_CONFIG" ]; then
         cp $CLOUD_CONFIG $TARGET
     fi
@@ -106,7 +106,7 @@ tar cvzf /var/tmp/modules.tar.gz -C /mnt $(</usr/share/oem/modules)
 umount /mnt
 
 echo "Writing image to disk"
-curl -s --retry 5 --retry-delay 2 http://%CHANNEL%.release.core-os.net/amd64-usr/%VERSION%/coreos_production_image.bin.bz2 | bzip2 -dc | dd of=/dev/vda bs=1M
+curl -sL --retry 5 --retry-delay 2 http://%CHANNEL%.release.core-os.net/amd64-usr/%VERSION%/coreos_production_image.bin.bz2 | bzip2 -dc | dd of=/dev/vda bs=1M
 
 blockdev --rereadpt /dev/vda
 
@@ -122,7 +122,7 @@ umount /mnt
 
 
 mount LABEL=DOROOT /mnt
-curl -s http://cdimage.ubuntu.com/ubuntu-core/releases/14.04/release/ubuntu-core-14.04-core-amd64.tar.gz | tar xvzf - -C /mnt
+curl -sL http://cdimage.ubuntu.com/ubuntu-core/releases/14.04/release/ubuntu-core-14.04-core-amd64.tar.gz | tar xvzf - -C /mnt
 mkdir -p /mnt/lib/modules
 tar xvzf /var/tmp/modules.tar.gz -C /mnt
 cp /etc/resolv.conf /mnt/etc/resolv.conf
