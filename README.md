@@ -1,3 +1,6 @@
+This project is now officially obsolete as Digital Ocean now supports [CoreOS natively](https://coreos.com/blog/digital-ocean-supports-coreos/)
+============================================================================================================================================
+
 CoreOS on Digital Ocean
 =======================
 
